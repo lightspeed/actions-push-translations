@@ -26,41 +26,45 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
   const txConfigContents = fs.readFileSync("./.tx/config", "utf8");
   const txConfig = ini.parse(txConfigContents);
   const { main, ...nestedResources } = txConfig;
-  const resources: ResourceConfigs = flat(nestedResources, { maxDepth: 2 });
+  const resources: ResourceConfigs = flat(nestedResources, { maxDepth: 1 });
   const resourceNames = Object.keys(resources);
 
   let pushed = [];
   for (const resourceName of resourceNames) {
+    const regexp = new RegExp("^o:(.+):p:(.+):r:(.+)$", "g");
     // Extract the project and package name
-    const [projectID, resourceID] = resourceName.split(".");
-    console.log(
-      `Pushing translations for resource ${resourceID} from project ${projectID}`
-    );
+    const match = regexp.exec(resourceName);
+    if (match) {
+      const [, projectID, resourceID] = match;
+      console.log(
+        `Pushing translations for resource ${resourceID} from project ${projectID}`
+      );
 
-    // Determine if the source file has been updated
-    const sourceFilename = resources[resourceName].source_file;
-    const diffSummary = await git.diffSummary(["HEAD~1"]);
-    const source = diffSummary.files
-      .map(({ file }) => file)
-      .find(path => path.includes(sourceFilename));
+      // Determine if the source file has been updated
+      const sourceFilename = resources[resourceName].source_file;
+      const diffSummary = await git.diffSummary(["HEAD~1"]);
+      const source = diffSummary.files
+        .map(({ file }) => file)
+        .find((path) => path.includes(sourceFilename));
 
-    // Nothing to do if source file has not been changed
-    if (!source) {
-      console.log(`Source file unchanged for ${resourceID}`);
-      continue;
+      // Nothing to do if source file has not been changed
+      if (!source) {
+        console.log(`Source file unchanged for ${resourceID}`);
+        continue;
+      }
+
+      // Push translations to Transifex
+      const { stdout } = await execAsync(`tx push -s -r ${resourceName}`);
+      console.log(`Transifex push output:\n${stdout}`);
+
+      // // Track changes in resource files for Slack notification
+      const diff = await git.diff(["HEAD~1", "--", sourceFilename]);
+      const changes = diff
+        .split("\n")
+        .filter((line) => line.match(/^(\+|\-) /g))
+        .join("\n");
+      pushed.push({ resourceID, changes });
     }
-
-    // Push translations to Transifex
-    const { stdout } = await execAsync(`tx push -s -r ${resourceName}`);
-    console.log(`Transifex push output:\n${stdout}`);
-
-    // Track changes in resource files for Slack notification
-    const diff = await git.diff(["HEAD~1", "--", sourceFilename]);
-    const changes = diff
-      .split("\n")
-      .filter(line => line.match(/^(\+|\-) /g))
-      .join("\n");
-    pushed.push({ resourceID, changes });
   }
 
   // Notify Slack
@@ -73,17 +77,17 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
           title: `:rocket: Updated translations pushed to Transifex`,
           fields: pushed.map(({ resourceID, changes }) => ({
             title: resourceID,
-            value: `\`\`\`${changes}\`\`\``
-          }))
-        }
-      ]
+            value: `\`\`\`${changes}\`\`\``,
+          })),
+        },
+      ],
     });
   }
 };
 
 pushTranslations({
-  slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || ""
-}).catch(err => {
+  slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || "",
+}).catch((err) => {
   // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
