@@ -35,7 +35,7 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
     // Extract the project and package name
     const match = regexp.exec(resourceName);
     if (match) {
-      const [, projectID, resourceID] = match;
+      const [, , projectID, resourceID] = match;
       console.log(
         `Pushing translations for resource ${resourceID} from project ${projectID}`
       );
@@ -54,7 +54,9 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
       }
 
       // Push translations to Transifex
-      const { stdout } = await execAsync(`tx push -s -r ${resourceName}`);
+      const { stdout } = await execAsync(
+        `tx push -s -r ${projectID}.${resourceID}`
+      );
       console.log(`Transifex push output:\n${stdout}`);
 
       // // Track changes in resource files for Slack notification
