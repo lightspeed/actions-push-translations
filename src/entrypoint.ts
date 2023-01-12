@@ -58,9 +58,10 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
         console.info(`Different source file found for ${source}`);
       }
 
+      console.log('~~~~hello');
       // Push translations to Transifex
       const { stdout } = await execAsync(
-        `tx push -s -r ${projectID}.${resourceID}`
+        `tx push ${projectID}.${resourceID}`
       );
       console.log(`Transifex push output:\n${stdout}`);
 
