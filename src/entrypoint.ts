@@ -29,11 +29,14 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
   const resources: ResourceConfigs = flat(nestedResources, { maxDepth: 1 });
   const resourceNames = Object.keys(resources);
 
+  console.log("Resource names", resourceNames);
+
   let pushed = [];
   for (const resourceName of resourceNames) {
     const regexp = new RegExp("^o:(.+):p:(.+):r:(.+)$", "g");
     // Extract the project and package name
     const match = regexp.exec(resourceName);
+    console.log("match", match);
     if (match) {
       const [, , projectID, resourceID] = match;
       console.log(
@@ -49,8 +52,10 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
 
       // Nothing to do if source file has not been changed
       if (!source) {
-        console.log(`Source file unchanged for ${resourceID}`);
+        console.info(`Source file unchanged for ${resourceID}`);
         continue;
+      } else {
+        console.info(`Different source file found for ${source}`);
       }
 
       // Push translations to Transifex
