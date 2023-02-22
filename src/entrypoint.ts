@@ -7,6 +7,7 @@ import util from "util";
 import ini from "ini";
 import { exec } from "child_process";
 import { IncomingWebhook } from "@slack/webhook";
+import { getInput } from "@actions/core";
 
 const git = simplegit();
 const execAsync = util.promisify(exec);
@@ -28,6 +29,7 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
   const { main, ...nestedResources } = txConfig;
   const resources: ResourceConfigs = flat(nestedResources, { maxDepth: 1 });
   const resourceNames = Object.keys(resources);
+  const sinceCommit = getInput("since_commit", { required: false }) || "HEAD~1";
 
   let pushed = [];
   for (const resourceName of resourceNames) {
@@ -42,14 +44,19 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
 
       // Determine if the source file has been updated
       const sourceFilename = resources[resourceName].source_file;
-      const diffSummary = await git.diffSummary(["HEAD~1"]);
+      console.log(
+        `Checking for changes to ${sourceFilename} since ${sinceCommit}`
+      );
+      const diffSummary = await git.diffSummary([sinceCommit]);
       const source = diffSummary.files
         .map(({ file }) => file)
         .find((path) => path.includes(sourceFilename));
 
       // Nothing to do if source file has not been changed
       if (!source) {
-        console.log(`Source file unchanged for ${resourceID}`);
+        console.log(
+          `Source file unchanged for ${resourceID} since ${sinceCommit}`
+        );
         continue;
       }
 
@@ -60,7 +67,7 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
       console.log(`Transifex push output:\n${stdout}`);
 
       // // Track changes in resource files for Slack notification
-      const diff = await git.diff(["HEAD~1", "--", sourceFilename]);
+      const diff = await git.diff([sinceCommit, "--", sourceFilename]);
       const changes = diff
         .split("\n")
         .filter((line) => line.match(/^(\+|\-) /g))

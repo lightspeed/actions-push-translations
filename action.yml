@@ -1,3 +1,8 @@
+inputs:
+  since_commit:
+    description: 'The base commit to check against for determining if there have been translation file changes (optional)'
+    required: false
+
 name: "Push Translations"
 description: "Push translations to Transifex on changes to source files on master"
 author: "Lightspeed HQ"
