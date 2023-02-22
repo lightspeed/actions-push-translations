@@ -29,7 +29,7 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
   const { main, ...nestedResources } = txConfig;
   const resources: ResourceConfigs = flat(nestedResources, { maxDepth: 1 });
   const resourceNames = Object.keys(resources);
-  const sinceCommit = getInput("since_commit") || "HEAD~1";
+  const sinceCommit = getInput("since_commit", { required: false }) || "HEAD~1";
 
   let pushed = [];
   for (const resourceName of resourceNames) {
@@ -54,7 +54,9 @@ const pushTranslations = async ({ slackWebhookUrl }: Input) => {
 
       // Nothing to do if source file has not been changed
       if (!source) {
-        console.log(`Source file unchanged for ${resourceID} since ${sinceCommit}`);
+        console.log(
+          `Source file unchanged for ${resourceID} since ${sinceCommit}`
+        );
         continue;
       }
 
